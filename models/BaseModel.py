@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import timm
 from .pool_layers import _create_fc, _create_pool
-from .RepConv import _RepConv
 from .ResNext import ResNeXt
 
 class _FinalLayers(nn.Module):
@@ -14,7 +13,7 @@ class _FinalLayers(nn.Module):
         self.drop = nn.Dropout(p=0.3)
 
     def forward(self, x):
-        #out = self.drop(x)
+        out = self.drop(x)
         out = self.global_pool(x)
         out = self.fc(out)
         return out    
@@ -38,3 +37,5 @@ class RecognitionModel(nn.Module):
   #  inp = torch.randn(4, 3, 260, 260, requires_grad=True)
    # m, out = model(inp)
     #print(m.shape, out.shape)
+
+

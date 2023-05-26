@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .se_block import SEBlock, Squeeze_excitation_layer
+from .se_block import Squeeze_excitation_layer
 
 class _RepConv(nn.Module):
     def __init__(self, inputs, outputs, num_blocks, stride=1, override_groups_map=None, deploy=False, use_se=False, use_checkpoint=False):
@@ -81,14 +81,14 @@ class RepVGGBlock(nn.Module):
 
     def forward(self, inputs):
         if hasattr(self, 'rbr_reparam'):
-            return self.se(self.nonlinearity(self.rbr_reparam(inputs)))
+            return self.nonlinearity(self.se(self.rbr_reparam(inputs)))
 
         if self.rbr_identity is None:
             id_out = 0
         else:
             id_out = self.rbr_identity(inputs)
 
-        return self.se(self.nonlinearity(self.rbr_dense(inputs) + self.rbr_1x1(inputs) + id_out))
+        return self.nonlinearity(self.se(self.rbr_dense(inputs) + self.rbr_1x1(inputs) + id_out))
 
 
     def get_custom_L2(self):

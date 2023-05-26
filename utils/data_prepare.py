@@ -6,11 +6,9 @@ import numpy as np
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from utils import img_padding
-from cfg import Cfg
 
 root="datasets/dataset"
 nppath="datasets/npy"
-meta_label = ['retriever', 'terrier', 'poodle', 'mastiff','collie', 'sheepdog', 'spaniel', 'setter', 'schnauzer', 'hound']
 
 os.makedirs(nppath, exist_ok=True)
 
@@ -28,7 +26,7 @@ def ToNumpy(X, y, test_size=0.1):
     np.save(os.path.join(nppath, "X_test"), X_test)
     np.save(os.path.join(nppath, "y_test"), y_test)
 
-def main():
+def prepare_data(cfg):
     imgs, labels = [], []
     label_names = os.listdir(root)
     label_names = sorted(label_names)
@@ -36,7 +34,7 @@ def main():
         path = os.path.join(root, label, '*.jpg')
         print(cls, label, path)
         for p in glob.glob(path):
-            img = preprocess(p, size=260)
+            img = preprocess(p, size=int(cfg.input_size))
             imgs.append(img)
             labels.append(int(cls))
     
@@ -44,6 +42,4 @@ def main():
     y = np.array(labels)
     ToNumpy(X, y, test_size=0.05)
 
-if __name__=='__main__':
-    main()
 
