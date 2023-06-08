@@ -8,7 +8,7 @@ Classification task sample with ResNeXt and RepConv model
 
 # Perfomance
 
-<b>Dataset</b>
+## Dataset
 - [Stanford Dogs dataset](http://vision.stanford.edu/aditya86/ImageNetDogs/)
 
 
