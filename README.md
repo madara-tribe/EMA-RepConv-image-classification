@@ -8,6 +8,10 @@ Classification task sample with ResNeXt and RepConv model
 
 # Perfomance
 
+<b>Dataset</b>
+- [Stanford Dogs dataset](http://vision.stanford.edu/aditya86/ImageNetDogs/)
+
+
 | Model | Head | Pretrain | class | model param | accuracy |
 | :---         |     :---:      |     :---:      |     :---:      |     :---:      |         ---: |
 | resnext50d_32x4d(timm) | fc | imageNet | 16 | | %|
