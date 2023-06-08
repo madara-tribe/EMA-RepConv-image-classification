@@ -17,7 +17,7 @@ from utils.dataloader import DataLoader
 from utils.optimizers import create_optimizers
 from utils.callback import CallBackModelCheckpoint
 from utils import utils
-from models.BaseModel import RecognitionModel
+from models.models import call_ResNeXt, call_LLM, call_RepConvResNeXt
 
 class BasicTrainer:
     def create_data_loader(self, config, use_imagefolder=None):
@@ -33,13 +33,12 @@ class BasicTrainer:
             A.CoarseDropout(max_holes=4, max_height=100, max_width=100, min_holes=1, min_height=50, min_width=50, fill_value=0, p=1.0),
             A.ImageCompression(),
             A.GaussNoise(),
-            #A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-            A.Normalize(mean=(0, 0, 0), std=(1, 1, 1)),
+            A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
             ToTensorV2()
             ])
 
         val_transform = A.Compose([
-            A.Normalize(mean=(0, 0, 0), std=(1, 1, 1)),
+            A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
             ToTensorV2()
             ])
         if use_imagefolder:
@@ -56,15 +55,20 @@ class BasicTrainer:
         print("Train set: %d, Val set: %d" %(len(self.train_dst), len(self.val_dst)))
 
     def train(self, config, device, weight_path=None):
-        model = RecognitionModel(embedding_size=config.emmbed_size, deploy=False, bottleneck_width=1.5, cardinality=4).to(device)
+        if config.model_type=='repconv':
+            model = call_RepConvResNeXt(config, device, deploy=False)
+        elif config.model_type=='LLM':
+            model = call_LLM(config, device)
+        elif config.model_type=='ResNeXt':
+            model = call_ResNeXt(config, device)
         model_ema = None
         if config.model_ema:
             adjust = config.world_size * config.train_batch * config.model_ema_steps / config.epochs
             alpha = 1.0 - config.model_ema_decay
             alpha = min(1.0, alpha * adjust)
             model_ema = utils.ExponentialMovingAverage(model, device=device, decay=1.0 - alpha)
-        print(model)
-         
+        #print(model)
+        
         if weight_path is not None:
             model.load_state_dict(torch.load(weight_path, map_location=device))
         #if torch.cuda.device_count() > 1:
@@ -94,7 +98,7 @@ class BasicTrainer:
 
             self.validate(model, self.val_loader, self.global_step, epoch, device, self.tfwriter, self.callback_checkpoint, ema=False)
             if config.model_ema:
-                self.validate(model_ema.module, self.val_loader, self.global_step, epoch, device, self.tfwriter, self.callback_checkpoint, ema=True)
+                self.validate(model_ema, self.val_loader, self.global_step, epoch, device, self.tfwriter, self.callback_checkpoint, ema=True)
             lr_scheduler.step()
       
 class Trainer(BasicTrainer):
@@ -137,7 +141,6 @@ class Trainer(BasicTrainer):
                 pbar.update()
                 self.global_step += 1
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
-                 
                 # Evaluation round
                 if self.global_step % cfg.eval_step == 0:
                     nums = cfg.eval_step

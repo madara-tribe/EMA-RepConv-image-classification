@@ -8,9 +8,8 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
 from utils.dataloader import DataLoader
-from models.BaseModel import RecognitionModel
 from cfg import Cfg    
-
+from models.models import call_ResNeXt, call_LLM, call_RepConvResNeXt
 
 root="datasets/npy"
 
@@ -34,9 +33,14 @@ class BasePredictor:
         return val_loader, val_dst
 
     def load_trained_model(self, cfg, device, weight_path):
-        model = RecognitionModel(embedding_size=cfg.emmbed_size, deploy=True, bottleneck_width=1.5, cardinality=4).to(device)
+        if cfg.model_type=='repconv':
+            model = call_RepConvResNeXt(cfg, device, deploy=True)
+        elif cfg.model_type=='LLM':
+            model = call_LLM(cfg, device)
+        elif cfg.model_type=='ResNeXt':
+            model = call_ResNeXt(cfg, device)
         model.load_state_dict(torch.load(weight_path, map_location=device), strict=False)
-        print(model)
+        #print(model)
         from torchsummary import summary
         summary(model, (3, cfg.input_size, cfg.input_size))
         return model

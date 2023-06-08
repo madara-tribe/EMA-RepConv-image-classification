@@ -14,6 +14,15 @@ Cfg.val_interval = 2000
 Cfg.gpu_id = '0'
 Cfg.input_size=256
 Cfg.label_smoothing = 0
+
+# model
+Cfg.model_type='repconv'
+#Cfg.model_type='LLM'
+#Cfg.model_type='ResNeXt'
+if (Cfg.model_type=='repconv') or (Cfg.model_type=='LLM') or (Cfg.model_type=='ResNeXt'):
+    Cfg.bottleneck_width = 2
+    Cfg.cardinality=32
+
 # EMA
 Cfg.model_ema=True
 Cfg.world_size = 1
@@ -30,7 +39,7 @@ Cfg.lr_step_size = 30
 Cfg.lr_gamma = 0.1
 
 ## dataset
-Cfg.emmbed_size = 79
+Cfg.emmbed_size = 69
 Cfg.X_train = "datasets/npy/X_train.npy"
 Cfg.y_train = "datasets/npy/y_train.npy"
 Cfg.X_test = "datasets/npy/X_test.npy"

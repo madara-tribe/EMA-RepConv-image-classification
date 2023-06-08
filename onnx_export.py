@@ -5,8 +5,9 @@ import onnxruntime as ort
 from torchsummary import summary
 import torch
 import torch.onnx 
-from models.BaseModel import RecognitionModel
 from cfg import Cfg
+from models.models import call_ResNeXt, call_LLM, call_RepConvResNeXt
+
 
 def load_img(path='datasets/npy'):
     X = np.load(os.path.join(path, 'X_test.npy'))
@@ -39,18 +40,23 @@ def inference(onnx_file_name):
     print(f"inference time is {latency}")
 
 def load_trained_model(cfg, device, weight_path):
-    model = RecognitionModel(embedding_size=cfg.emmbed_size, deploy=False, bottleneck_width=1.5, cardinality=4).to(device)
+    if cfg.model_type=='repconv':
+        model = call_RepConvResNeXt(cfg, device, deploy=True)
+    elif cfg.model_type=='LLM':
+        model = call_LLM(cfg, device)
+    elif cfg.model_type=='ResNeXt':
+        model = call_ResNeXt(cfg, device)
     model.load_state_dict(torch.load(weight_path, map_location=device), strict=False)
     #print(model)
     summary(model, (3, cfg.input_size, cfg.input_size))
     return model
 
 #Function to Convert to ONNX 
-def Convert_ONNX(model):
+def Convert_ONNX(model, device):
     H = W = cfg.input_size
     # set the model to inference mode 
     model.eval() 
-    dummy_input = torch.randn(1, 3, H, W, requires_grad=True)  
+    dummy_input = torch.randn(1, 3, H, W, requires_grad=True).to(device)  
     onnx_file_name = "repconv{}_{}.onnx".format(H, W)
     # Export the model   
     torch.onnx.export(model,         # model being run 
@@ -77,6 +83,6 @@ if __name__=="__main__":
     cfg = Cfg
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = load_trained_model(cfg, device, weight_path)
-    Convert_ONNX(model)
+    Convert_ONNX(model, device)
 
 

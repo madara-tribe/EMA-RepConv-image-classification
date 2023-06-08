@@ -8,7 +8,7 @@ from utils import img_padding
 
 root="datasets/dataset"
 nppath="datasets/npy"
- 
+
 os.makedirs(nppath, exist_ok=True)
 
 def preprocess(p, size=224):
