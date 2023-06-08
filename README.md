@@ -20,6 +20,6 @@ Classification task sample with ResNeXt and RepConv model
 | RepConv-ResNeXt | RepConv + fc | None | 16  | | %|
 
 # Model Feature
-
+- RepConv (re-parameterized model)
 - Exponential moving average (EMA)
 - image padding resize
