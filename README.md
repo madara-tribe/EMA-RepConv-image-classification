@@ -15,3 +15,7 @@ Classification task sample with ResNeXt and RepConv model
 | ResNext-LLMfc | LLM-fc | None| 16  | | %|
 | RepConv-ResNeXt | RepConv + fc | None | 16  | | %|
 
+# Model Feature
+
+- Exponential moving average (EMA)
+- image padding resize
