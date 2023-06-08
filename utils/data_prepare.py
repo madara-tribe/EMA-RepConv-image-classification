@@ -24,6 +24,36 @@ def ToNumpy(X_train, y_train, X_test, y_test):
     np.save(os.path.join(nppath, "X_test"), X_test)
     np.save(os.path.join(nppath, "y_test"), y_test)
 
+def balanced_prepare_data(cfg):
+    X_train, y_train, X_test, y_test = [], [], [], []
+    #path = os.path.join(root, '*.jpg')
+    label_folders = os.listdir(root)
+    label_folders = sorted(label_folders)
+    for i, label in enumerate(label_folders):
+        labels = int(label)
+        num_files = len(glob.glob(os.path.join(root, str(labels), '*.jpg')))
+        print(f"num_file at {labels} is {num_files}")    
+        num_test = int(num_files*0.1)
+        pathes = os.path.join(root, str(labels), '*.jpg')
+        print(f"num_file at {labels} is {num_files}", num_test, pathes)
+        for i, p in enumerate(glob.glob(pathes)):
+            img = preprocess(p, size=cfg.input_size)
+            if i < num_test:
+                print('test', i, labels, p)
+                X_test.append(img)
+                y_test.append(labels)
+            else:
+                print('train', i, labels, p)
+                X_train.append(img)
+                y_train.append(labels)
+    X_train = np.array(X_train)
+    y_train = np.array(y_train)
+    X_test = np.array(X_test)
+    y_test = np.array(y_test)
+    ToNumpy(X_train, y_train, X_test, y_test)
+
+
+    
 def prepare_data(cfg):
     X_train, X_test, y_train, y_test, stack = [], [], [], [], []
     label_names = os.listdir(root)
