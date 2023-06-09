@@ -14,10 +14,10 @@ Classification task sample with ResNeXt and RepConv model
 
 | Model | Head | Pretrain | class | model param | accuracy |
 | :---         |     :---:      |     :---:      |     :---:      |     :---:      |         ---: |
-| resnext50d_32x4d(timm) | fc | imageNet | 16 | | %|
-| ResNext(original) | fc | None| 16  | | %|
-| ResNext-LLMfc | LLM-fc | None| 16  | | %|
-| RepConv-ResNeXt | RepConv + fc | None | 16  |13,895,408| %|
+| resnext50d_32x4d(timm) | fc | imageNet |16| | %|
+| ResNext(original) | fc | None|16| | %|
+| ResNext-LLMfc | LLM-fc | None|16|20,151,536| %|
+| RepConv-ResNeXt | RepConv + fc | None |16|13,895,408|78.55 %|
 
 # Model Feature
 - RepConv (re-parameterized model)
