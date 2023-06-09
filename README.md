@@ -16,7 +16,7 @@ Classification task sample with ResNeXt and RepConv model
 | :---         |     :---:      |     :---:      |     :---:      |     :---:      |         ---: |
 | resnext50d_32x4d(timm) | fc | imageNet |16| | %|
 | ResNext(original) | fc | None|16| | %|
-| ResNext-LLMfc | LLM-fc | None|16|20,151,536| %|
+| ResNext-LLMfc | LLM-fc | None|16|15,801,584| %|
 | RepConv-ResNeXt | RepConv + fc | None |16|13,895,408|78.55 %|
 
 # Model Feature
