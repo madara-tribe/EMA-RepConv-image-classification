@@ -19,7 +19,15 @@ Classification task sample with ResNeXt and RepConv model
 | ResNext-LLMfc | LLM-fc | None|16|15,801,584| %|
 | RepConv-ResNeXt | RepConv + fc | None |16|13,895,408|78.55 %|
 
-# Model Feature
+
+# ONNX convert
+```bash
+python3 onnx_export.py <weight_path>
+```
+
+
+# Features
 - RepConv (re-parameterized model)
 - Exponential moving average (EMA)
 - image padding resize
+- ONNX convert
