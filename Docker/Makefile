@@ -1,5 +1,5 @@
-IMAGE=conchita
-HOME=/home/tatsuyahagiwara
+IMAGE=sample
+HOME=/root/app
 run:
 	docker build -t ${IMAGE} .
 in:
