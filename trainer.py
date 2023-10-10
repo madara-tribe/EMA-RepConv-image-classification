@@ -1,5 +1,5 @@
 import logging
-import sys, os
+import math
 import numpy as np
 import torch
 import torch.nn as nn
@@ -8,16 +8,14 @@ from torch.utils import data
 from torchsummary import summary
 from tqdm import tqdm
 import tensorboardX as tbx
-from torchvision.datasets import ImageFolder
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
-
-from cfg import Cfg
+import torch.nn.functional as F
 from utils.dataloader import DataLoader
 from utils.optimizers import create_optimizers
 from utils.callback import CallBackModelCheckpoint
-from utils import utils
-from models.models import call_ResNeXt, call_LLM, call_RepConvResNeXt
+from models.ema import EMA
+from utils.augmentations import transforms_, mixup_, mixup_cutmix
+from models.models import call_RepConvResNeXt
+
 
 class BasicTrainer:
     def create_data_loader(self, config, use_imagefolder=None):
@@ -26,27 +24,14 @@ class BasicTrainer:
         A.Normalize(mean=(0,0,0), std=(1,1,1)),
         ToTensorV2()
         """
-        train_transform = A.Compose([
-            A.HorizontalFlip(),
-            A.RandomBrightnessContrast(),
-            #Random Erasing
-            A.CoarseDropout(max_holes=4, max_height=100, max_width=100, min_holes=1, min_height=50, min_width=50, fill_value=0, p=1.0),
-            A.ImageCompression(),
-            A.GaussNoise(),
-            A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-            ToTensorV2()
-            ])
-
-        val_transform = A.Compose([
-            A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-            ToTensorV2()
-            ])
+        train_transform, val_transform = transforms_(config)
         if use_imagefolder:
+            from torchvision.datasets import ImageFolder
             self.train_dst = ImageFolder("datasets/dataset", transform = train_transform)
             self.val_dst = ImageFolder("datasets/dataset", transform=val_transform)
         else:
-            self.train_dst = DataLoader(config.X_train, config.y_train, transform=train_transform)
-            self.val_dst = DataLoader(config.X_test, config.y_test, transform=val_transform)
+            self.train_dst = DataLoader(root=config.root_train, transform=train_transform)
+            self.val_dst = DataLoader(root=config.root_valid, transform=val_transform)
 
         self.train_loader = data.DataLoader(
                 self.train_dst, batch_size=config.train_batch, shuffle=True, num_workers=self.num_workers, pin_memory=self.pin_memory)
@@ -55,20 +40,9 @@ class BasicTrainer:
         print("Train set: %d, Val set: %d" %(len(self.train_dst), len(self.val_dst)))
 
     def train(self, config, device, weight_path=None):
-        if config.model_type=='repconv':
-            model = call_RepConvResNeXt(config, device, deploy=False)
-        elif config.model_type=='LLM':
-            model = call_LLM(config, device)
-        elif config.model_type=='ResNeXt':
-            model = call_ResNeXt(config, device)
-        model_ema = None
-        if config.model_ema:
-            adjust = config.world_size * config.train_batch * config.model_ema_steps / config.epochs
-            alpha = 1.0 - config.model_ema_decay
-            alpha = min(1.0, alpha * adjust)
-            model_ema = utils.ExponentialMovingAverage(model, device=device, decay=1.0 - alpha)
-        #print(model)
-        
+        model = call_RepConvResNeXt(config, device, deploy=False)
+        if config.half==1:
+            model.half().float()
         if weight_path is not None:
             model.load_state_dict(torch.load(weight_path, map_location=device))
         #if torch.cuda.device_count() > 1:
@@ -80,27 +54,19 @@ class BasicTrainer:
             Learning rate:   {config.lr}
             Training size:   {len(self.train_dst)}
             Validation size: {len(self.val_dst)}
-            Model Typr : {config.model_type}
         ''')
 
         # 4. Set up the optimizer, the loss, the learning rate scheduler and the loss scaling for AMP
-        optimizer, lr_scheduler = create_optimizers(model, config)
+        optimizer, self.lr_scheduler = create_optimizers(model, config)
+        ema = EMA(model.parameters(), decay_rate=0.995, num_updates=0)
 
         # 5. Begin training
         self.global_step = 0
-        iters = len(self.train_loader)
-        interval_loss = 0
-        center, side1, side2 = 0, 0, 0
         print('Start training')
         for epoch in range(1, config.epochs+1):
             model.train()
-            self.train_one_epoch_loop(config, epoch, device, model, self.train_dst, self.train_loader, optimizer, self.tfwriter, model_ema=model_ema)
-
-
-            self.validate(model, self.val_loader, self.global_step, epoch, device, self.tfwriter, self.callback_checkpoint, ema=False)
-            if config.model_ema:
-                self.validate(model_ema, self.val_loader, self.global_step, epoch, device, self.tfwriter, self.callback_checkpoint, ema=True)
-            lr_scheduler.step()
+            self.train_one_epoch_loop(config, epoch, device, model, self.train_dst, self.train_loader, optimizer, self.tfwriter, ema=ema)
+            self.validate(model, self.val_loader, self.global_step, epoch, device, self.tfwriter, self.callback_checkpoint, ema=ema)
       
 class Trainer(BasicTrainer):
     def __init__(self, config, device, num_workers, pin_memory, weight_path=None):
@@ -121,24 +87,27 @@ class Trainer(BasicTrainer):
         self.create_data_loader(config, use_imagefolder=None)
         self.callback_checkpoint = CallBackModelCheckpoint(config)
         
-    def train_one_epoch_loop(self, cfg, epoch, device, model, train_dst, train_loader, optimizer, tfwriter, model_ema):
+    def train_one_epoch_loop(self, cfg, epoch, device, model, train_dst, train_loader, optimizer, tfwriter, ema):
         interval_loss = 0
+        iters = len(train_loader)
         with tqdm(total=int(len(train_dst)/cfg.train_batch), desc=f'Epoch {epoch}/{cfg.epochs}') as pbar:
-            for i, (x_img, label) in enumerate(train_loader):
-                x_img = x_img.to(device=device)
+            for i, (img, label) in enumerate(train_loader):
+                img = img.to(device=device)
                 label = label.to(device=device).long()
-                pred = model(x_img)
-                #print(x_img.shape, x_img.min(), x_img.max())
+                if cfg.scale_size == 1:
+                    gs = cfg.SCALE_SIZE[int(np.random.randint(0, 2, size=1))]
+                    ns = [math.ceil(x + gs) for x in img.shape[2:]]
+                    img = F.interpolate(img, size=ns, mode='bilinear', align_corners=False)
+                    # print('pass', ns, imgs_.shape)
+                pred = model(img)
                 loss = self.criterion(pred, label)
                 interval_loss += loss.item()
                 loss.backward()
                 optimizer.step()
+                self.lr_scheduler.step(epoch + i / iters)
                 optimizer.zero_grad()
-                if model_ema and i % cfg.model_ema_steps == 0:
-                    model_ema.update_parameters(model)
-                    if epoch < cfg.lr_warmup_epochs:
-                        # Reset ema buffer to keep copying weights during warmup period
-                        model_ema.n_averaged.fill_(0)
+                ema.update(model.parameters())
+
                 pbar.update()
                 self.global_step += 1
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
@@ -150,36 +119,28 @@ class Trainer(BasicTrainer):
                     interval_loss = 0
                     
     def validate(self, model, val_loader, global_step,
-             epoch, device, tfwriter, callback_checkpoint, ema=False):
+             epoch, device, tfwriter, callback_checkpoint, ema):
         interval_valloss = 0
         nums = 0
-        acc = 0
         model.eval()
         print("validating .....")
         with torch.no_grad():
-            for i, (x_val, y_val) in tqdm(enumerate(val_loader)):
-                x_val = x_val.to(device=device)
-                label = y_val.to(device=device).long()
-                pred = model(x_val)
-                loss = self.criterion(pred, label)
+            for i, (img, y) in tqdm(enumerate(val_loader)):
+                img = img.to(device=device)
+                y = y.to(device=device).long()
+                ema.store(model.parameters())
+                ema.copy(model.parameters())
+                pred = model(img)
+                loss = self.criterion(pred, y)
                
                 interval_valloss += loss.item()
                 nums += 1
-            if ema:
-                tfwriter.add_scalar('valid/ema_loss', interval_valloss/nums, global_step)
-                if interval_valloss/nums < self.val_ema_loss:
-                    self.val_ema_loss = interval_valloss/nums
-                    callback_checkpoint(global_step, np.round(self.val_ema_loss, decimals=4), model, ema=True)
-                    logging.info(f'EMA Model Checkpoint {epoch} saved! loss is {self.val_ema_loss}')
-
+            tfwriter.add_scalar('valid/val_loss', interval_valloss/nums, global_step)
                 
-            else:
-                tfwriter.add_scalar('valid/val_loss', interval_valloss/nums, global_step)
-                
-                if interval_valloss/nums < self.val_loss:
-                    self.val_loss = interval_valloss/nums
-                    callback_checkpoint(global_step, np.round(self.val_loss, decimals=4), model, ema=False)
-                    logging.info(f'Model Checkpoint {epoch} saved! loss is {self.val_loss}')
+            if interval_valloss/nums < self.val_loss:
+                self.val_loss = interval_valloss/nums
+                callback_checkpoint(global_step, np.round(self.val_loss, decimals=4), model)
+                logging.info(f'Model Checkpoint {epoch} saved! loss is {self.val_loss}')
             print("Epoch %d, Itrs %d, valid_Loss=%f" % (epoch, global_step, interval_valloss/nums))
    
 

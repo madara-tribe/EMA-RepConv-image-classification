@@ -3,15 +3,20 @@ matplotlib
 opencv-python
 torchsummary
 tqdm
+pandas
+seaborn
 easydict 
+tensorflow
 tensorboardX
 scikit-learn
+efficientnet-pytorch
 timm
 albumentations
-tensorboard
+protobuf==3.20.2 
 # cording
 flake8
 # edage
-onnx>=1.9.0
-onnx-simplifier>=0.3.6
+onnx
 onnxruntime
+onnx-simplifier>=0.3.6
+

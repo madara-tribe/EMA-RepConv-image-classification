@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-        
+import numpy as np
+
+
 class StemBlock(nn.Module):
     def __init__(self, in_planes, outsize):
         super(StemBlock, self).__init__()
@@ -266,5 +267,3 @@ class RepConv(nn.Module):
         if self.rbr_dense is not None:
             del self.rbr_dense
             self.rbr_dense = None
-
-

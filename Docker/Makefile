@@ -1,6 +1,6 @@
-IMAGE=torcharc
+IMAGE=conchita
 HOME=/home/tatsuyahagiwara
 run:
 	docker build -t ${IMAGE} .
 in:
-	docker run -v ${HOME}:/home/app --rm -it ${IMAGE}:latest bash
+	nvidia-docker run --runtime=nvidia -v ${HOME}:/home/app --rm -it ${IMAGE}:latest bash

@@ -3,7 +3,6 @@ import os
 import glob
 import numpy as np
 from tqdm import tqdm
-from sklearn.model_selection import train_test_split
 from utils import img_padding
 
 root="datasets/dataset"

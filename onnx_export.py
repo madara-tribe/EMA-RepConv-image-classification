@@ -1,29 +1,39 @@
-import sys, os
+import sys
 import time
+from PIL import Image
 import numpy as np
 import onnxruntime as ort
 from torchsummary import summary
 import torch
 import torch.onnx 
 from cfg import Cfg
-from models.models import call_ResNeXt, call_LLM, call_RepConvResNeXt
+from models.models import call_RepConvResNeXt
+from utils.augmentations import transforms_
 
 
-def load_img(path='datasets/npy'):
-    X = np.load(os.path.join(path, 'X_test.npy'))
-    y = np.load(os.path.join(path, 'y_test.npy'))
-    label = y[0]
-    img_in = np.transpose(X[0], (2, 0, 1))
-    img_in = np.expand_dims(img_in, axis=0)/255
+def pil_loader(path: str) -> Image.Image:
+    # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
+    with open(path, "rb") as f:
+        img = Image.open(f)
+        return img.convert("RGB")
+
+def load_img(path, cfg):
+    _, val_transform = transforms_(cfg)
+    x = pil_loader(path)
+    tensor_img = val_transform(image=np.array(x))['image']
+    x = tensor_img.to('cpu').detach().numpy().copy()
+    img_in = np.expand_dims(x, axis=0)
+    print(img_in.shape, img_in.max(), img_in.min())
+    label = int(path.split('/')[-1].split('_')[0])
     return img_in, label
 
-def inference(onnx_file_name):
-    img_in, label = load_img(path='datasets/npy')
+def inference(onnx_file_name, img_path, cfg):
+    img_in, label = load_img(img_path, cfg)
     print("Shape of the network input: ", img_in.shape, img_in.min(), img_in.max())
 
     ort_session = ort.InferenceSession(onnx_file_name)
-    IMAGE_HEIGHT = ort_session.get_inputs()[0].shape[2]
-    IMAGE_WIDTH = ort_session.get_inputs()[0].shape[3]
+    # IMAGE_HEIGHT = ort_session.get_inputs()[0].shape[2]
+    # IMAGE_WIDTH = ort_session.get_inputs()[0].shape[3]
     input_name = ort_session.get_inputs()[0].name
     print("The model expects input shape: ", ort_session.get_inputs()[0].shape)
 
@@ -40,14 +50,10 @@ def inference(onnx_file_name):
     print(f"inference time is {latency}")
 
 def load_trained_model(cfg, device, weight_path):
-    if cfg.model_type=='repconv':
-        model = call_RepConvResNeXt(cfg, device, deploy=True)
-    elif cfg.model_type=='LLM':
-        model = call_LLM(cfg, device)
-    elif cfg.model_type=='ResNeXt':
-        model = call_ResNeXt(cfg, device)
+    model = call_RepConvResNeXt(cfg, device, deploy=True)
     model.load_state_dict(torch.load(weight_path, map_location=device), strict=False)
-    #print(model)
+    if cfg.half==1:
+        model.half().float()
     summary(model, (3, cfg.input_size, cfg.input_size))
     return model
 
@@ -71,7 +77,12 @@ def Convert_ONNX(model, device):
                                 'modelOutput' : {0 : 'batch_size'}})
                                 
     print(f'Model has been converted to ONNX as {onnx_file_name}') 
-    inference(onnx_file_name)
+    return onnx_file_name
+
+def main(cfg, device, weight_path, img_path):
+    model = load_trained_model(cfg, device, weight_path)
+    onnx_file_name = Convert_ONNX(model, device)
+    inference(onnx_file_name, img_path, cfg)
 
 
 if __name__=="__main__":
@@ -81,8 +92,8 @@ if __name__=="__main__":
         print("weight_path should be difined")
         sys.exit(1)
     cfg = Cfg
+    img_path = '0_1_4_5_2023.jpg'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = load_trained_model(cfg, device, weight_path)
-    Convert_ONNX(model, device)
+    main(cfg, device, weight_path, img_path)
 
 
