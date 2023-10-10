@@ -22,7 +22,7 @@ Classification task sample with ResNeXt and RepConv model
 | Model | Head | Pretrain | class | model param | accuracy |
 | :---         |     :---:      |     :---:      |     :---:      |     :---:      |         ---: |
 | resnext50d_32x4d(timm) | fc | imageNet |69|25,270,000|74.09%|
-| RepConv-ResNeXt | RepConv + fc | None |59|13,895,408|79.55%|
+| RepConv-ResNeXt | RepConv + fc | None |69|13,895,408|79.55%|
 
 ## loss(train/valid)
 
