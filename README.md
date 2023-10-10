@@ -30,8 +30,13 @@ Classification task sample with ResNeXt and RepConv model
 
 <img src="https://github.com/madara-tribe/onnxed-RepConv-ResNeXt/assets/48679574/34ae5fe6-f8c6-4e1b-b75a-3f08df1599fa" width="300px" height="200px"/>
 
+## train/eval
+```bash
+python3 main.py --mode train (-w <weight path>)
+python3 main.py --mode eval -w <weight path>
+```
 
-# ONNX convert
+## ONNX convert
 ```bash
 python3 onnx_export.py <weight_path>
 ```
