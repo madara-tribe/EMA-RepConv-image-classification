@@ -25,7 +25,10 @@ Classification task sample with ResNeXt and RepConv model
 | RepConv-ResNeXt | RepConv + fc | None |59|13,895,408|79.55%|
 
 ## loss(train/valid)
-<img src="https://github.com/madara-tribe/onnxed-RepConv-ResNeXt/assets/48679574/ee856f28-91d1-4320-ba62-77fcfa941aa9" width="300px" height="200px"/><img src="https://github.com/madara-tribe/onnxed-RepConv-ResNeXt/assets/48679574/34ae5fe6-f8c6-4e1b-b75a-3f08df1599fa" width="300px" height="200px"/>
+
+<img src="https://github.com/madara-tribe/onnxed-RepConv-ResNeXt/assets/48679574/ee856f28-91d1-4320-ba62-77fcfa941aa9" width="300px" height="200px"/>
+
+<img src="https://github.com/madara-tribe/onnxed-RepConv-ResNeXt/assets/48679574/34ae5fe6-f8c6-4e1b-b75a-3f08df1599fa" width="300px" height="200px"/>
 
 
 # ONNX convert
