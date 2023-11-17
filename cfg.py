@@ -18,7 +18,7 @@ Cfg.bottleneck_width = 2
 Cfg.cardinality=32
 
 ## hyperparameter
-Cfg.half = 1
+Cfg.half = 0
 Cfg.scale_size = 1
 Cfg.cutmix = 1
 Cfg.cutmixup_on = 0
