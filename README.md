@@ -44,7 +44,6 @@ python3 onnx_export.py <weight_path>
 # improvent methods
 - ExponentialMovingAverage(EMA)
 - resize image size during training
-- model half
 - augumentation that fit dataset
 - norm layer
 - RexNext + AdamW
